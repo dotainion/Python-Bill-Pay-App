@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chat Bot</title>
+</head>
+<body>
+
+<div style="margin-top:0px;">
+    <div style="height:500px;width:280px;border:inset;position:fixed;margin-top:-520px;">
+        <div id="messages" style="overflow:auto;height:500px;"></div>
+    </div>
+
+    <div style="margin-top:520px;">
+        <div id="user-name-input">
+            <p>Please provide your email address</p>
+            <input style="border-radius:25px;font-size:12px;width:180px;" id="user-email" type="email" placeholder="example@gmail.com">
+            <input style="border-radius:25px;font-size:12px;" onclick="validateEmail()" type="button" value="Start Chat"/>
+        </div>
+
+        <div id="submit-form" style="display:none">
+           <form id="message_input_form">
+                <input type="submit" hidden id="submit-me">
+                <input style="border-radius:25px;font-size:20px;width:200px;" type="text" id="message-input">
+                <button style="border-radius:25px;font-size:20px;" onclick="placeMyMsg()" id="sendbutton" type="button">Send</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+
+</body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+<!---<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>--->
+<script>
+var typing;
+function isTyping(){
+    typing = document.createElement('div');
+    typing.innerHTML = '<span><b>&nbsp;Kai is typing...</b></span>';
+    document.getElementById('messages').appendChild(typing);
+}
+
+function scrollToTop(){
+    var scrollDiv = document.getElementById("messages");
+    scrollDiv.scrollTop = scrollDiv.scrollHeight;
+}
+
+function placeMyMsg(){
+    var myText = document.getElementById('message-input').value;
+    if (myText.length){
+        const myNode = document.createElement('div');
+        const userName = document.createElement('div');
+        userName.innerHTML = '<b>:You</b>'
+        userName.style.textAlign = 'right';
+        myNode.innerHTML = '<div class="customer-speech-bubble"><p>'+myText+'&nbsp;&nbsp;&nbsp;</p></div>';
+        document.getElementById('messages').appendChild(userName);
+        document.getElementById('messages').appendChild(myNode);
+        myNode.style.color = 'blue';
+        document.getElementById('submit-me').click();
+        scrollToTop();
+    }
+}
+
+function validateEmail(){
+    var reg = /^([A-Za-z0-9_\-.])+@([A-Za-z0-9_\-.])+\.([A-Za-z]{2,4})$/;
+    if (reg.test(document.getElementById('user-email').value)){
+        document.getElementById('submit-form').style.display = '';
+        document.getElementById('user-name-input').style.display = 'none';
+        StartSession();
+    }
+}
+function StartSession(){
+    const socket = io.connect("http://190.213.179.77:22012");
+
+    socket.on('connect', function(){
+        socket.emit('join_room',{
+            username: "{{ username }}",
+            room: document.getElementById('user-email').value
+        });
+
+        let message_input = document.getElementById('message-input');
+        document.getElementById('message_input_form').onsubmit = function (e) {
+            e.preventDefault();
+            let message = message_input.value.trim();
+            if (message.length){
+                socket.emit('send_message',{
+                    username: "{{ username }}",
+                    room: document.getElementById('user-email').value,
+                    message:message
+                });
+            }
+            isTyping();
+            message_input.value = '';
+            message_input.focus();
+        }
+    });
+
+    socket.on('receive_message',function(data){
+        const newNode = document.createElement('div');
+        const botName = document.createElement('div');
+        botName.innerHTML = '<b>'+data.username+'</b>';
+        newNode.innerHTML = '<div class="speech-bubble"><p>&nbsp;&nbsp;&nbsp;'+data.message+'</p></div>';
+        document.getElementById('messages').appendChild(botName);
+        document.getElementById('messages').appendChild(newNode);
+        newNode.style.color = 'purple';
+        typing.style.display = 'none';
+        scrollToTop();
+    });
+
+    socket.on('join_room-announcement',function(data){
+        const newNode = document.createElement('div');
+        const botName = document.createElement('div');
+        botName.innerHTML = '<b style="float:left;">'+data.username+'</b>';
+        newNode.innerHTML = '<div class="speech-bubble" style="margin-top:15px;"><p>&nbsp;&nbsp;&nbsp;'+data.message+'</p></div>';
+        document.getElementById('messages').appendChild(botName);
+        document.getElementById('messages').appendChild(newNode);
+        newNode.style.color = 'purple';
+    });
+}
+</script>
+<style>
+    .speech-bubble{
+        background-color:white;
+        margin-left:30px;
+        border-bottom-left-radius:50px;
+        border-top-right-radius:25px;
+        border-bottom-right-radius:25px;
+        box-shadow: #421D5D 0px 5px 15px;
+        width:150px;
+        text-align:center;
+        margin-top:-20px;
+    }
+    .customer-speech-bubble{
+        background-color:skyBlue;
+        margin-right:30px;
+        border-bottom-right-radius:50px;
+        border-top-left-radius:25px;
+        border-bottom-left-radius:25px;
+        box-shadow: #421D5D 0px 5px 15px;
+        width:150px;
+        margin-left:100px;
+        text-align:center;
+        margin-top:-20px;
+    }
+</style>
+</html>

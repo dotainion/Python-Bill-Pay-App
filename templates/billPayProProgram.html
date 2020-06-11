@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+
+<body>
+
+<div>
+    <div class="header">
+            <h1 class="headerFont">BillPay</h1>
+        <!--this form will get items based on value submited, eg, complited, pending and other-->
+        <div style="text-align:center">
+            <form onsubmit="successfulSub()" action="{{ url_for('submissionProcess') }}" method="POST" enctype = "multipart/form-data">
+                <input id="subForm" hidden name="submissionForm">
+                <input id="subMsg" hidden name="submissionMessages" value="{{state[0]}}">
+                <button type="button" onclick="document.getElementById('email').style.display = '';document.getElementById('emailBtn').style.display = '';toggleSendEmail(this.id)" id="sendEmailBtn">Send Email</button>
+                <input placeholder="example@gmil.com" style="display:none" id="email" type="email">
+                <button onclick="submitValue('email')" id="emailBtn" style="color:green;display:none;">send</button>
+                <button onclick="submitValue(this.id)" id="print" value="print">Print</button>
+                <select style="font-size:22px" onchange="document.getElementById('subOptions').style.display = '';document.getElementById('subMsg').value = this.value;" id="options">
+                    {% for item in state %}
+                        <option>{{ item }}</option>
+                    {% endfor %}
+                </select>
+                <input onclick="submitValue('options');this.style.display = 'none'" style="display:none;color:green;font-size:20px" id="subOptions" type="submit">
+                <button type="button" onclick="submitAllAsPaid()">MARK ALL AS PAID</button>
+                <button type="button" onclick="markSinglAsPaid(this.id)" id="markSingle">MARK AS PAID</button>
+                <button type="button" onclick="submitSelecedItems()" style="color:darkgreen;display: none;" id="submitSingl">Submit Seleced</button>
+            </form>
+        </div>
+        <!--this form is to update all selected items thats pending-->
+        <div>
+            <form action="{{ url_for('updateSelecedPayments') }}" method="POST" enctype = "multipart/form-data">
+                <input type="submit" value="" hidden id="submit-seleced-items" name="selected-items">
+            </form>
+        </div>
+        <!--this form is to update all items its pending-->
+        <div>
+            <form action="{{ url_for('updateAllPayments') }}" method="POST" enctype = "multipart/form-data">
+                <input type="submit" value="" hidden id="submit-all-items" name="select-all-items">
+            </form>
+        </div>
+    </div>
+
+    <div style="height:100px;"></div>
+    <div class="textBox">
+        <div style="background-color:red;text-align:left;">
+            <div style="width:6%;float:left;">Time</div>
+            <div style="width:5%;float:left;">Amount</div>
+            <div style="width:10%;float:left;">Utility</div>
+            <div style="width:10%;float:left;">Utility Account</div>
+            <div style="width:10%;float:left;">Sate</div>
+            <div style="width:20%;float:left;">Email</div>
+            <div style="width:25%;float:left;">Bank</div>
+            <div style="width:11%;float:left;">Bank Account</div>
+            <h1 style="font-size:15px;">Index</h1>
+        </div>
+        <div id="list-items">
+            {% if data %}
+            {% for item in data %}
+                <div class="payments" id="{{ item }}+++{{ loop.index }}" onclick="selectSingle(this.id)" onmouseout="mouseOut(this.id)" onmouseover="mouseHover(this.id)">
+                    <div style="width:6%;float:left;">{{ item[0] }}</div>
+                    <div style="width:5%;float:left;">${{ item[1] }}</div>
+                    <div style="width:10%;float:left;">{{ item[2] }}</div>
+                    <div style="width:10%;float:left;">{{ item[3] }}</div>
+                    <div style="width:10%;float:left;">{{ item[4] }}</div>
+                    <div style="width:20%;float:left;">{{ item[5] }}</div>
+                    <div style="width:25%;float:left;">{{ item[6] }}</div>
+                    <div style="width:11%;float:left;">{{ item[7] }}</div>
+                    <!--<div style="width:90px;float:left;">{{ item[8] }}</div>
+                    <div style="width:90px;float:left;">{{ item[9] }}</div>-->
+                    <h1 style="font-size:15px;">{{loop.index}}</h1>
+                </div>
+            {% endfor %}
+            {% else %}
+                <h1>No records</h1>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</body>
+<style>
+    .payments {
+        background-color:skyBlue;
+        color: black;
+    }
+    .textBox{
+        text-align:left;
+        font-size:15px;
+    }
+    button{
+        font-size:20px;
+        text-align:center;
+    }
+    .header{
+        color:white;
+
+        background:blue;
+        position:fixed;
+        width:100%
+    }
+    .headerFont{
+        font-size:50px;
+        height:25px;
+        margin-top:0px;
+        text-align:center;
+    }
+</style>
+<script>
+    /*this variable weill set to true when the button 'MARK AS PAID' is seleced to prevent
+    mouseOut adn mouseHover function for executing so that items can be seleced*/
+    var markAsPaid = false;
+    /*this will store the items selected to mark as paid*/
+    var storeSeleceditems = [];
+
+    /*this will place original color back to item when mouse pointer is remove if markAsPaid is false*/
+    function mouseOut(element){
+        if (!markAsPaid){
+            document.getElementById(element).style.backgroundColor = 'skyBlue';
+        }
+    }
+
+    /*this will highlight item on hover with color if markAsPaid is false*/
+    function mouseHover(element){
+        if (!markAsPaid){
+            document.getElementById(element).style.backgroundColor = 'gray';
+        }
+    }
+
+    /*this function will change send email button background color and remove email input on toggle*/
+    function toggleSendEmail(element){
+        var btn = document.getElementById(element);
+        if (btn.style.backgroundColor !== 'gray'){
+            btn.style.backgroundColor = 'gray';
+        }else{
+            btn.style.backgroundColor = '';
+            var emailBtn = document.getElementById('email')
+            emailBtn.value = '';
+            emailBtn.style.display = 'none';
+        }
+    }
+
+    /*this will check email and element before submiting*/
+    function submitValue(element_id){
+        try{
+            var element = document.getElementById(element_id);
+            var elementValue = element.value;
+            var submissionButton = document.getElementById("subForm")
+            submissionButton.value = '';
+            if (element.id === 'email'){
+                if (elementValue === ''){
+                    window.alert("please provide email address");
+                    submissionButton.value = '';
+                }else{
+                    submissionButton.value = elementValue;
+                    element.value = '';
+                    submissionButton.click();
+                    element.style.display = 'none';
+                    document.getElementById('emailBtn').style.display = 'none';
+                }
+            }else{
+                submissionButton.value = elementValue;
+                submissionButton.click();
+            }
+        }catch{
+            window.alert("Sorry Something went wrong");
+        }
+    }
+
+    /*this will highlight item on click once markAsPaid variable is true,
+    items value is set as id in element div so we uses time.id to get its value seleced*/
+    function selectSingle(element){
+        if (markAsPaid){
+            var item = document.getElementById(element)
+            if (item.style.backgroundColor !== 'blue'){
+                item.style.backgroundColor = 'blue';
+                item.style.color = 'white';
+                storeSeleceditems.push(item.id);
+            }else{
+                item.style.backgroundColor = 'skyBlue';
+                item.style.color = 'black';
+            }
+        }
+    }
+
+    /*this will set markAsPid varible as true to highligh spesific item as paid when click
+    and place back to original state when reclick as toggle*/
+    function markSinglAsPaid(element){
+        var btn = document.getElementById(element)
+        if (markAsPaid){
+            markAsPaid = false;
+            btn.style.backgroundColor = '';
+            storeSeleceditems.splice(0, storeSeleceditems.length);
+            var listItmes = document.getElementById('list-items').children;
+            for (var i=0;i<listItmes.length;i++){
+                listItmes[i].style.color = 'black';
+                listItmes[i].style.backgroundColor = 'skyBlue';
+                document.getElementById('submitSingl').style.display = 'none';
+            }
+        }else{
+            markAsPaid = true;
+            btn.style.backgroundColor = 'gray';
+            document.getElementById('submitSingl').style.display = '';
+        }
+    }
+
+    /*this will mark all highlighed item as paid when submitted to server*/
+    function submitAllAsPaid(){
+        var submitAll = document.getElementById('submit-all-items');
+        submitAll.value = 'true';
+        submitAll.click();
+    }
+
+    /*this will mark selected items as paid when submitted to server*/
+    function submitSelecedItems(){
+        var tempValue = []
+        var subSelecItm = document.getElementById('submit-seleced-items');
+        if (storeSeleceditems.length){
+            subSelecItm.value = storeSeleceditems;
+            subSelecItm.click();
+        }
+    }
+
+    /*this will do something when submited*/
+    function successfulSub(){
+
+    }
+</script>
+</html>
